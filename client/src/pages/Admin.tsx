@@ -64,7 +64,13 @@ function Admin() {
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     const fd = new FormData();
-    Object.entries(formData).forEach(([k, v]) => fd.append(k, v));
+    fd.append('name', formData.name);
+    fd.append('description', formData.description);
+    fd.append('price', formData.price);
+    fd.append('category', formData.category);
+    fd.append('sizes', formData.sizes);
+    fd.append('stock', formData.stock);
+    fd.append('imageUrl', formData.imageUrl);
     const created = await api.admin.createProduct(fd);
     setProducts(prev => [...prev, created]);
     resetForm();

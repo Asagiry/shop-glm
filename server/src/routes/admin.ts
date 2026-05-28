@@ -10,7 +10,7 @@ import axios from 'axios';
 const router = Router();
 const prisma = new PrismaClient();
 
-const uploadDir = path.join(__dirname, '../uploads');
+const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -35,28 +35,38 @@ router.post('/products', upload.single('image'), async (req: AuthRequest, res: R
     const { name, description, price, category, sizes, stock, imageUrl } = req.body;
     let finalImageUrl = '';
 
-    if (imageUrl) {
-      const fileName = Date.now() + '-' + path.basename(imageUrl);
-      const filePath = path.join(uploadDir, fileName);
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      fs.writeFileSync(filePath, response.data);
-      finalImageUrl = `/uploads/${fileName}`;
-      logEvent(`Admin downloaded image from URL: ${imageUrl}`);
+    if (imageUrl && imageUrl.startsWith('http')) {
+      try {
+        const fileName = Date.now() + '-' + path.basename(imageUrl).split('?')[0];
+        const filePath = path.join(uploadDir, fileName);
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
+        fs.writeFileSync(filePath, response.data);
+        finalImageUrl = `/uploads/${fileName}`;
+        logEvent(`Admin downloaded image from URL: ${imageUrl}`);
+      } catch (downloadErr: any) {
+        logEvent(`Admin image download failed: ${downloadErr.message}`);
+        finalImageUrl = imageUrl;
+      }
+    } else if (imageUrl) {
+      finalImageUrl = imageUrl;
     } else if (req.file) {
       finalImageUrl = `/uploads/${req.file.filename}`;
     }
 
+    if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+
     const product = await prisma.product.create({
       data: {
-        name, description, price: Number(price), category, sizes, stock: Number(stock),
-        imageUrl: finalImageUrl,
+        name, description: description || '', price: Number(price),
+        category: category || 'T-Shirts', sizes: sizes || 'S,M,L,XL',
+        stock: Number(stock) || 0, imageUrl: finalImageUrl,
       },
     });
     logEvent(`Admin created product: ${name}, price ${price}`);
     res.json(product);
   } catch (e: any) {
     logEvent(`Admin product creation error: ${e.message}`);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -68,13 +78,19 @@ router.put('/products/:id', async (req: AuthRequest, res: Response) => {
     const { name, description, price, category, sizes, stock, imageUrl } = req.body;
     let finalImageUrl = existing.imageUrl;
 
-    if (imageUrl && imageUrl !== existing.imageUrl) {
-      const fileName = Date.now() + '-' + path.basename(imageUrl);
-      const filePath = path.join(uploadDir, fileName);
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      fs.writeFileSync(filePath, response.data);
-      finalImageUrl = `/uploads/${fileName}`;
-      logEvent(`Admin downloaded new image from URL: ${imageUrl}`);
+    if (imageUrl && imageUrl.startsWith('http') && imageUrl !== existing.imageUrl) {
+      try {
+        const fileName = Date.now() + '-' + path.basename(imageUrl).split('?')[0];
+        const filePath = path.join(uploadDir, fileName);
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
+        fs.writeFileSync(filePath, response.data);
+        finalImageUrl = `/uploads/${fileName}`;
+        logEvent(`Admin downloaded new image from URL: ${imageUrl}`);
+      } catch (downloadErr: any) {
+        logEvent(`Admin image download failed: ${downloadErr.message}`);
+      }
+    } else if (imageUrl && !imageUrl.startsWith('http')) {
+      finalImageUrl = imageUrl;
     }
 
     if (price && Number(price) !== existing.price) {
@@ -84,13 +100,18 @@ router.put('/products/:id', async (req: AuthRequest, res: Response) => {
     const product = await prisma.product.update({
       where: { id: Number(req.params.id) },
       data: {
-        name, description, price: Number(price), category, sizes, stock: Number(stock),
+        name: name || existing.name,
+        description: description || existing.description,
+        price: Number(price) || existing.price,
+        category: category || existing.category,
+        sizes: sizes || existing.sizes,
+        stock: Number(stock) || existing.stock,
         imageUrl: finalImageUrl,
       },
     });
     res.json(product);
   } catch (e: any) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: e.message });
   }
 });
 
