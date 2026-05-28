@@ -39,7 +39,7 @@ router.post('/products', upload.single('image'), async (req: AuthRequest, res: R
       try {
         const fileName = Date.now() + '-' + path.basename(imageUrl).split('?')[0];
         const filePath = path.join(uploadDir, fileName);
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ShopBot/1.0)' } });
         fs.writeFileSync(filePath, response.data);
         finalImageUrl = `/uploads/${fileName}`;
         logEvent(`Admin downloaded image from URL: ${imageUrl}`);
@@ -82,7 +82,7 @@ router.put('/products/:id', async (req: AuthRequest, res: Response) => {
       try {
         const fileName = Date.now() + '-' + path.basename(imageUrl).split('?')[0];
         const filePath = path.join(uploadDir, fileName);
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ShopBot/1.0)' } });
         fs.writeFileSync(filePath, response.data);
         finalImageUrl = `/uploads/${fileName}`;
         logEvent(`Admin downloaded new image from URL: ${imageUrl}`);
