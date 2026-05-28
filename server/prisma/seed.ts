@@ -10,6 +10,12 @@ async function main() {
   await prisma.product.deleteMany();
   await prisma.user.deleteMany();
 
+  await prisma.$executeRaw`ALTER SEQUENCE "User_id_seq" RESTART WITH 1`;
+  await prisma.$executeRaw`ALTER SEQUENCE "Product_id_seq" RESTART WITH 1`;
+  await prisma.$executeRaw`ALTER SEQUENCE "Order_id_seq" RESTART WITH 1`;
+  await prisma.$executeRaw`ALTER SEQUENCE "OrderItem_id_seq" RESTART WITH 1`;
+  await prisma.$executeRaw`ALTER SEQUENCE "PasswordReset_id_seq" RESTART WITH 1`;
+
   const adminPassword = await bcrypt.hash('admin', 10);
   const user1Password = await bcrypt.hash('user123', 10);
   const user2Password = await bcrypt.hash('test123', 10);
@@ -24,7 +30,7 @@ async function main() {
     data: { email: 'jane@example.com', password: user2Password, name: 'Jane Smith', role: 'user' },
   });
 
-  const products = [
+  const productDefs = [
     { name: 'Vibe Miner T-Shirt', description: 'Premium cotton tee featuring the iconic Vibe Miner logo. Perfect for your mining adventures.', price: 29.99, category: 'T-Shirts', sizes: 'S,M,L,XL', imageUrl: '/assets/tshirt_vibe_miner.png', stock: 50 },
     { name: 'Pixel Heart T-Shirt', description: 'Show your love for indie games with this pixel heart design. Soft and comfortable fabric.', price: 24.99, category: 'T-Shirts', sizes: 'S,M,L,XL', imageUrl: '/assets/tshirt_pixel_heart.png', stock: 40 },
     { name: 'Synthwave Runner Tee', description: 'Retro synthwave aesthetic meets modern comfort. Neon colors that pop in any lighting.', price: 27.99, category: 'T-Shirts', sizes: 'S,M,L,XL,XXL', imageUrl: '/assets/tshirt_synthwave.png', stock: 35 },
@@ -42,16 +48,18 @@ async function main() {
     { name: 'Indie Game Heroes Poster Set', description: 'Set of character portraits from beloved indie games including Vibe Miner protagonists. Collector edition.', price: 24.99, category: 'Posters', sizes: 'A3,A4', imageUrl: '/assets/tshirt_game_over.png', stock: 70 },
   ];
 
-  for (const p of products) {
-    await prisma.product.create({ data: p });
+  const createdProducts: { id: number }[] = [];
+  for (const p of productDefs) {
+    const product = await prisma.product.create({ data: p });
+    createdProducts.push(product);
   }
 
   const orders = [
-    { userId: user1.id, name: 'John Doe', address: '123 Gaming Lane, Portland, OR', phone: '+1-555-0101', paymentMethod: 'card', total: 54.98, status: 'Delivered', items: [{ productId: 1, size: 'L', quantity: 1, price: 29.99 }, { productId: 2, size: 'M', quantity: 1, price: 24.99 }] },
-    { userId: user1.id, name: 'John Doe', address: '123 Gaming Lane, Portland, OR', phone: '+1-555-0101', paymentMethod: 'paypal', total: 27.99, status: 'Shipped', items: [{ productId: 3, size: 'XL', quantity: 1, price: 27.99 }] },
-    { userId: user2.id, name: 'Jane Smith', address: '456 Retro Ave, Seattle, WA', phone: '+1-555-0202', paymentMethod: 'card', total: 78.97, status: 'Confirmed', items: [{ productId: 7, size: 'L', quantity: 1, price: 26.99 }, { productId: 8, size: 'M', quantity: 1, price: 28.99 }, { productId: 4, size: 'S', quantity: 1, price: 22.99 }] },
-    { userId: user2.id, name: 'Jane Smith', address: '456 Retro Ave, Seattle, WA', phone: '+1-555-0202', paymentMethod: 'crypto', total: 15.99, status: 'Delivered', items: [{ productId: 11, size: 'A3', quantity: 1, price: 15.99 }] },
-    { userId: admin.id, name: 'Admin User', address: '789 Dev Street, San Francisco, CA', phone: '+1-555-0303', paymentMethod: 'card', total: 56.98, status: 'New', items: [{ productId: 5, size: 'L', quantity: 1, price: 31.99 }, { productId: 10, size: 'XL', quantity: 1, price: 25.99 }] },
+    { userId: user1.id, name: 'John Doe', address: '123 Gaming Lane, Portland, OR', phone: '+1-555-0101', paymentMethod: 'card', total: 54.98, status: 'Delivered', items: [{ productId: createdProducts[0].id, size: 'L', quantity: 1, price: 29.99 }, { productId: createdProducts[1].id, size: 'M', quantity: 1, price: 24.99 }] },
+    { userId: user1.id, name: 'John Doe', address: '123 Gaming Lane, Portland, OR', phone: '+1-555-0101', paymentMethod: 'paypal', total: 27.99, status: 'Shipped', items: [{ productId: createdProducts[2].id, size: 'XL', quantity: 1, price: 27.99 }] },
+    { userId: user2.id, name: 'Jane Smith', address: '456 Retro Ave, Seattle, WA', phone: '+1-555-0202', paymentMethod: 'card', total: 78.97, status: 'Confirmed', items: [{ productId: createdProducts[6].id, size: 'L', quantity: 1, price: 26.99 }, { productId: createdProducts[7].id, size: 'M', quantity: 1, price: 28.99 }, { productId: createdProducts[3].id, size: 'S', quantity: 1, price: 22.99 }] },
+    { userId: user2.id, name: 'Jane Smith', address: '456 Retro Ave, Seattle, WA', phone: '+1-555-0202', paymentMethod: 'crypto', total: 15.99, status: 'Delivered', items: [{ productId: createdProducts[10].id, size: 'A3', quantity: 1, price: 15.99 }] },
+    { userId: admin.id, name: 'Admin User', address: '789 Dev Street, San Francisco, CA', phone: '+1-555-0303', paymentMethod: 'card', total: 56.98, status: 'New', items: [{ productId: createdProducts[4].id, size: 'L', quantity: 1, price: 31.99 }, { productId: createdProducts[9].id, size: 'XL', quantity: 1, price: 25.99 }] },
   ];
 
   for (const o of orders) {
