@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 80;
 
 app.use(cors({
-  origin: ['http://glm-shop.voimaxgm.online', 'http://localhost:5173'],
+  origin: true,
   credentials: true,
 }));
 app.use(express.json());
@@ -32,7 +32,8 @@ app.use('/api/admin', adminRoutes);
 
 const clientDist = path.join(__dirname, '../../../client/dist');
 app.use(express.static(clientDist));
-app.get('*', (req, res) => {
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
